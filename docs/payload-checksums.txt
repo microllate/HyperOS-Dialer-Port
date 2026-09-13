@@ -1,0 +1,18 @@
+# Reference payload checksums from the uploaded MIUI HyperOS Dialer ZIP.
+# These are recorded for provenance/integrity verification; binaries are intentionally
+# not copied into the repository until the Android 15 compatibility path is finalized.
+
+InCallUI Android 13
+SHA256 9db994cbe919973b2edba4f0279d3a70485a079601a981579188edc9d1dd4a23
+
+InCallUI Android 14
+SHA256 ed48af7d7ee7cfde280e1a2c936befa7c2e57fc0bafc88d812421432e2d80c84
+
+MIUI Contacts
+SHA256 16d6ae6b9cdc646f0f14d2ffa8a6d255850d0bc5840e958e5ff707aaebabf36d
+
+Dialer overlay 1
+SHA256 fb556d5be9cdf369203ddc5e26f973aa4ef2954667af823045e73cc35cd53060
+
+Dialer overlay 2
+SHA256 fde522e7055d8bfaef1fde1eb8f7b7e5480ed8d7a3e74104f522a0ddd15f7714
