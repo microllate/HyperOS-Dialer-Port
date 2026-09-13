@@ -1,0 +1,6 @@
+id=hyperos_dialer_port
+name=HyperOS Dialer Port (EEA)
+version=0.3.0-dev
+versionCode=10
+author=microllate
+description=Systemless HyperOS China Dialer/InCallUI port for HyperOS EEA Android 15. Keeps EEA TeleService unchanged.
