@@ -1,0 +1,51 @@
+name: Validate HyperOS Dialer Port
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Validate repository layout
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -f module.prop
+          test -f customize.sh
+          test -f system.prop
+          test -f config/device.conf
+          test -f docs/android15-port-analysis.md
+          test -f docs/payload-policy.md
+          test -f tools/validate-module.sh
+          test -f system/etc/permissions/privapp-permissions-hyperos-dialer.xml
+          grep -q '^DEVICE=mondrian$' config/device.conf
+          grep -q '^ANDROID_API=35$' config/device.conf
+          grep -q '^ARCH=arm64-v8a$' config/device.conf
+          grep -q '^KEEP_EEA_TELESERVICE=true$' config/device.conf
+          echo 'Repository validation passed.'
+
+      - name: Validate shell scripts
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash -n customize.sh
+          bash -n tools/validate-module.sh
+
+      - name: Package source tree
+        run: |
+          mkdir -p dist
+          tar -czf dist/HyperOS-Dialer-Port-source.tar.gz \
+            --exclude=.git --exclude=dist .
+
+      - uses: actions/upload-artifact@v6
+        with:
+          name: HyperOS-Dialer-Port-source
+          path: dist/HyperOS-Dialer-Port-source.tar.gz

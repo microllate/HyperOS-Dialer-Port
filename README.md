@@ -1,28 +1,35 @@
 # HyperOS-Dialer-Port
 
-Systemless HyperOS China Dialer/InCallUI port for HyperOS EEA Android 15.
+Android 15 / HyperOS OS3 EEA systemless port work for Xiaomi `mondrian`.
 
-## Target
+## Current target
 
-- Device: Xiaomi/Poco mondrian
+- Device: `mondrian`
 - ROM: HyperOS OS3 EEA
-- Android: 15
-- Build tested during analysis: `OS3.0.2.0.VMNEUXM`
+- Android API: 35
+- Architecture: arm64-v8a
+- Target components: China HyperOS InCallUI + MIUI Contacts
+- TeleService: **EEA version is retained**
+- Installation model: KernelSU/meta-overlayfs systemless overlay
 
-## v0.3 design
+## Safety policy
 
-The port is intentionally conservative:
+This project does not use the Android 13/14 installer from the reference module. It does not blindly `pm install` the China InCallUI APK, uninstall Google Dialer/Contacts updates, or replace EEA TeleService.
 
-1. Use the China HyperOS `com.android.incallui` APK.
-2. Use the China `com.android.contacts` APK where required.
-3. Add only the required privileged permissions.
-4. Apply only the required Dialer resource overlays.
-5. Keep the EEA `com.android.phone` / TeleService unchanged.
-6. Do not use `pm install` or remove Google Dialer/Contacts system updates.
-7. Mount payload systemlessly through KernelSU/meta-overlayfs.
+APK payloads are added only after their Android 15 compatibility and required privileged permissions are verified.
 
-## Important
+## Layout
 
-This repository is under active development. Do not flash a release until the Android 15 compatibility checks and boot/recovery tests pass.
+```text
+module.prop
+customize.sh
+system.prop
+system/etc/permissions/
+product/priv-app/
+product/overlay/
+tools/
+docs/
+.github/workflows/
+```
 
-The third-party Android 13/14 dialer module used as a reference is documented under `docs/`. Its installer is **not** reused because its Android-version branching does not support Android 15 and it changes the EEA Google Dialer/Contacts environment.
+See `docs/android15-port-analysis.md` for the compatibility findings.
