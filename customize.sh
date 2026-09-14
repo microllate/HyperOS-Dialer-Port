@@ -6,12 +6,13 @@ POSTFSDATA=false
 LATESTARTSERVICE=false
 
 ui_print "*******************************"
-ui_print " HyperOS Dialer Port v0.3.0"
+ui_print " HyperOS Dialer Port v0.4.0"
 ui_print " Android 15 / HyperOS OS3"
 ui_print "*******************************"
 
-ui_print "- Systemless port: China InCallUI + MIUI Contacts"
-ui_print "- EEA TeleService is NOT replaced"
+ui_print "- China InCallUI + MIUI Contacts"
+ui_print "- OS2 China TeleService / com.android.phone"
+ui_print "- MMS is deferred"
 ui_print "- No pm install / pm uninstall-system-updates"
 ui_print "- Payload is mounted by KernelSU/meta-overlayfs"
 

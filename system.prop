@@ -1,0 +1,2 @@
+# Targeted Android 15 / HyperOS EEA port.
+# Deliberately no telephony framework properties are overridden.

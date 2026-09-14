@@ -1,28 +1,43 @@
 # HyperOS-Dialer-Port
 
-Systemless HyperOS China Dialer/InCallUI port for HyperOS EEA Android 15.
+Android 15 / HyperOS OS3 EEA systemless dialer port for Xiaomi `mondrian`.
 
 ## Target
 
-- Device: Xiaomi/Poco mondrian
-- ROM: HyperOS OS3 EEA
-- Android: 15
-- Build tested during analysis: `OS3.0.2.0.VMNEUXM`
+- Device: `mondrian`
+- ROM: HyperOS OS3 EEA / `OS3.0.2.0.VMNEUXM`
+- Android API: 35
+- Architecture: arm64-v8a
+- Region: EEA
+- Installation: KernelSU / meta-overlayfs systemless module
 
-## v0.3 design
+## Payload
 
-The port is intentionally conservative:
+- `com.android.incallui`: HyperOS InCallUI payload from the supplied domestic module's Android 14 `InCallUIU` branch.
+- `com.android.contacts`: MIUI Contacts payload from the supplied module.
+- Three supplied dialer overlays are preserved exactly.
+- EEA `com.android.phone` / TeleService is **not replaced**.
+- MMS/RCS payload is **not included**.
 
-1. Use the China HyperOS `com.android.incallui` APK.
-2. Use the China `com.android.contacts` APK where required.
-3. Add only the required privileged permissions.
-4. Apply only the required Dialer resource overlays.
-5. Keep the EEA `com.android.phone` / TeleService unchanged.
-6. Do not use `pm install` or remove Google Dialer/Contacts system updates.
-7. Mount payload systemlessly through KernelSU/meta-overlayfs.
+The Android 15 adaptation is primarily the installation/mount model: the old installer performed `pm install` and `pm uninstall-system-updates`; this port does neither. The APKs are mounted systemlessly so the stock EEA phone stack remains intact.
 
-## Important
+## Layout
 
-This repository is under active development. Do not flash a release until the Android 15 compatibility checks and boot/recovery tests pass.
+```text
+product/priv-app/InCallUIPhoneHyperOS/
+product/overlay/
+system/priv-app/MIUIContactsT/
+system/etc/permissions/
+META-INF/com/google/android/
+META-INF/zbin/
+```
 
-The third-party Android 13/14 dialer module used as a reference is documented under `docs/`. Its installer is **not** reused because its Android-version branching does not support Android 15 and it changes the EEA Google Dialer/Contacts environment.
+## Safety
+
+Do not replace the EEA TeleService with the OS2 China `com.android.phone` APK. The EEA TeleService contains region/device-specific telephony components that are not present in the China build.
+
+MMS is intentionally disabled to keep the first Android 15 EEA test scope limited to the dialer/call UI and contacts stack.
+
+The GitHub Actions workflow performs package, SDK, device-profile, hash, installer, ZIP-integrity and payload-scope checks before producing the test artifact.
+
+See `docs/android15-reference-scope.md`, `docs/overlay-analysis.md`, and `docs/tele-service-eea-vs-china.md` for the analysis records.

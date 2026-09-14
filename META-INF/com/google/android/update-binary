@@ -1,0 +1,4 @@
+#!/system/bin/sh
+# KernelSU/Magisk-compatible module placeholder.
+# Installation is handled by the root manager; no direct APK installation is performed here.
+exit 0

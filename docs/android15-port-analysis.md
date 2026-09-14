@@ -5,11 +5,19 @@
 - Device: `mondrian`
 - HyperOS: `OS3.0`
 - EEA build: `OS3.0.2.0.VMNEUXM`
+- Android: 15 / API 35
+- ABI: arm64-v8a
 - EEA dialer: `com.google.android.dialer`
 - EEA contacts: `com.google.android.contacts`
 - EEA telephony service: `com.android.phone`
 
-## China components
+## Reference module scope
+
+The supplied `MIUI_HyperOS国内拨号.zip` contains 7 APKs, 11 native libraries, 3 product overlays, a privileged-permission whitelist and a dynamic installer/runtime toolchain.
+
+The port keeps the core domestic stack but excludes the optional MMS/RCS stack for the first runtime build.
+
+## Authoritative OS2 payloads
 
 ### InCallUI
 
@@ -20,13 +28,14 @@
 - targetSdk: 34
 - ABI: arm64-v8a
 - APK SHA-256: `9b18172465e80a7bb387e1bfdd6de0ca8debf93427cf7b15bb87030095e0f120`
+- Signing certificate SHA-256: `e4431422e25ae61fa3655e9f908a9b40da2acd67fab99b737027c21fd22b7d40`
 
 ### MIUI Contacts
 
 - Package: `com.android.contacts`
 - Version: `16.8.05.21`
 - Version code: `80521`
-- APK size in source ROM: about 23 MB
+- ABI: arm64-v8a
 
 ### China TeleService
 
@@ -36,30 +45,58 @@
 - targetSdk: 35
 - ABI: arm64-v8a
 
-## Compatibility conclusion
+The OS2 China TeleService is now part of the module payload under `system/priv-app/TeleService`.
 
-China InCallUI has strong MIUI telephony integration and references classes under `com.android.phone`, including `MiuiPhoneApp`, `MiuiPhoneUtils`, `MiuiPhoneReceiver`, `MiuiImsPhoneUtils`, and `MiuiEsimManager`. It also declares `com.android.phone.permission.ACCESS_RELAY_SERVICE`.
+## Compatibility findings
 
-The recommended v0.3 strategy therefore **does not replace EEA TeleService**. The port introduces the UI-side packages and only the privileged permissions that are required by the InCallUI package. TeleService remains the EEA implementation.
+China InCallUI has strong MIUI telephony integration and references classes under `com.android.phone`, including `MiuiPhoneApp`, `MiuiPhoneUtils`, `MiuiPhoneReceiver`, `MiuiImsPhoneUtils`, `MiuiEsimManager` and `QCMiuiEsimManager`. It also references `com.android.phone.permission.ACCESS_RELAY_SERVICE` and TeleService-facing call-state updates.
 
-## Third-party reference module
+MIUI Contacts references `com.android.phone`, `com.android.server.telecom.BIND_INCALL` and `com.android.mms.providers.SmsProvider`.
 
-The supplied reference ZIP contains Android 13 and Android 14 InCallUI variants, MIUI Contacts, overlays, native libraries, and a privileged-permission whitelist. Its installer explicitly branches only for Android 13 and 14. On Android 15 the InCallUI path is not initialized, so its installation logic is not reusable as-is.
+These findings make China TeleService part of the intended core port rather than an EEA-compatible optional replacement.
 
-The reference installer also calls `pm install` and `pm uninstall-system-updates` for Google Dialer/Contacts. That is intentionally avoided here.
+## Native libraries
 
-## KernelSU/meta-overlayfs
+The CI build extracts native libraries directly from the exact OS2 InCallUI, Contacts and TeleService APKs. Android 13/14 reference libraries are not copied merely because they exist in the original module.
 
-The target environment uses KernelSU with meta-overlayfs v1.3.1. A manual runtime test previously confirmed that a module payload under `/product/priv-app/InCallUIPhoneHyperOS` can be exposed through the meta-overlayfs mount.
+MMS native libraries remain excluded together with MMS.
 
-The earlier boot failure occurred during module deployment/integration, not because the basic `/product` overlay path was impossible. v0.3 therefore keeps the payload and installer minimal and separates compatibility validation from device flashing.
+## Overlays
+
+The reference module contains:
+
+- `Dialer_overlay1_mods_center.apk`
+- `Dialer_overlay2_mods_center.apk`
+- `GmsConfigOverlayComms.apk`
+
+These are tracked as required compatibility candidates. They are not blindly inserted until target package/resource IDs are confirmed against OS3. No fake overlay binaries are generated.
+
+## Privileged permissions
+
+The port uses a minimized allowlist for `com.android.incallui` and `com.android.contacts` under `product/etc/permissions`. TeleService remains a system priv-app and is validated independently.
+
+## MMS decision
+
+`com.android.mms` and its six native libraries remain disabled. The original installer treated MMS as an optional component; omitting it keeps the first runtime scope focused on dialer, contacts and telephony.
+
+## Installer / zbin
+
+The original module's zbin architecture is retained as a concept. The port ships an Android 15/mondrian-specific `setup`, `core` and version marker. These validate the environment and deliberately do not run `pm install` or remove Google Dialer/Contacts updates.
+
+## Deployment model
+
+The target environment uses KernelSU with meta-overlayfs v1.3.1. A previous manual runtime test confirmed that a payload exposed under `/product/priv-app/InCallUIPhoneHyperOS` can appear through the meta-overlayfs mount.
+
+The generated module is systemless. It does not uninstall Google packages and does not use the reference module's direct package installation behavior.
 
 ## Validation order
 
-1. Verify APK package/signature and Android 15 framework dependencies.
-2. Verify privileged permissions against the target ROM.
-3. Verify required overlay resources.
-4. Build the module without device installation.
-5. Inspect the final ZIP structure.
-6. Only then perform a KernelSU safe-mode test.
-7. Keep a recovery/removal path available before first boot.
+1. Verify exact payload package/version/signature/ABI.
+2. Verify China InCallUI/Contacts dependencies against OS2 China TeleService.
+3. Verify native libraries from the exact payload APKs.
+4. Verify privileged permissions.
+5. Inspect the three reference overlays against OS3 resources.
+6. Build the real KernelSU ZIP in CI.
+7. Re-open the ZIP and verify paths and hashes.
+8. Perform static checks.
+9. Only then perform a KernelSU safe-mode device test with a tested removal path.

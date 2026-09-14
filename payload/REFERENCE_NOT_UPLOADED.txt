@@ -1,0 +1,1 @@
+The source binaries are retained from the supplied reference module. CI packaging must consume exact pinned binaries; no substitute OS2 TeleService payload is permitted.

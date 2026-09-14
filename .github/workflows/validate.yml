@@ -1,0 +1,107 @@
+name: Build HyperOS Dialer Port
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Prepare module tree
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf build dist
+          mkdir -p build/product/priv-app/InCallUIPhoneHyperOS/lib/arm64
+          mkdir -p build/system/priv-app/MIUIContactsT/lib/arm64
+          mkdir -p build/product/overlay
+          mkdir -p build/product/etc/permissions
+          mkdir -p build/META-INF/com/google/android
+          mkdir -p build/META-INF/zbin
+          cp module.prop customize.sh build/
+          cp -r config tools docs build/
+          cp product/etc/permissions/privapp-permissions-hyperos-dialer.xml build/product/etc/permissions/
+          cp META-INF/com/google/android/update-binary build/META-INF/com/google/android/update-binary
+          if [ -f META-INF/com/google/android/updater-script ]; then cp META-INF/com/google/android/updater-script build/META-INF/com/google/android/updater-script; fi
+          cp META-INF/zbin/setup META-INF/zbin/core META-INF/zbin/version.txt build/META-INF/zbin/
+
+      - name: Fetch current HyperOS InCallUI and exact reference Contacts
+        shell: bash
+        run: |
+          set -euo pipefail
+          BASE=https://raw.githubusercontent.com/microllate/HyperOS-Dialer-Port/main
+          curl -fL --retry 3 --retry-all-errors "$BASE/InCallUIPhoneHyperOS.apk" -o build/product/priv-app/InCallUIPhoneHyperOS/InCallUIPhoneHyperOS.apk
+          curl -fL --retry 3 --retry-all-errors "$BASE/MIUIContactsT.apk" -o build/system/priv-app/MIUIContactsT/MIUIContacts.apk
+          test "$(sha256sum build/product/priv-app/InCallUIPhoneHyperOS/InCallUIPhoneHyperOS.apk | cut -d' ' -f1)" = "9b18172465e80a7bb387e1bfdd6de0ca8debf93427cf7b15bb87030095e0f120"
+          test "$(sha256sum build/system/priv-app/MIUIContactsT/MIUIContacts.apk | cut -d' ' -f1)" = "16d6ae6b9cdc646f0f14d2ffa8a6d255850d0bc5840e958e5ff707aaebabf36d"
+          unzip -jo build/product/priv-app/InCallUIPhoneHyperOS/InCallUIPhoneHyperOS.apk 'lib/arm64-v8a/*.so' -d build/product/priv-app/InCallUIPhoneHyperOS/lib/arm64 || true
+          unzip -jo build/system/priv-app/MIUIContactsT/MIUIContacts.apk 'lib/arm64-v8a/*.so' -d build/system/priv-app/MIUIContactsT/lib/arm64 || true
+
+      - name: Validate Android 15 EEA scope
+        shell: bash
+        run: |
+          set -euo pipefail
+          AAPT2=$(find "${ANDROID_HOME}/build-tools" -type f -name aapt2 | sort -V | tail -1)
+          "$AAPT2" dump badging build/product/priv-app/InCallUIPhoneHyperOS/InCallUIPhoneHyperOS.apk > build/incallui-badging.txt
+          "$AAPT2" dump badging build/system/priv-app/MIUIContactsT/MIUIContacts.apk > build/contacts-badging.txt
+          grep -q "package: name='com.android.incallui'" build/incallui-badging.txt
+          grep -q "package: name='com.android.contacts'" build/contacts-badging.txt
+          grep -q "minSdkVersion='31'" build/incallui-badging.txt
+          grep -q "targetSdkVersion='34'\|targetSdkVersion='35'" build/incallui-badging.txt
+          grep -q '^DEVICE=mondrian$' build/config/device.conf
+          grep -q '^ANDROID_API=35$' build/config/device.conf
+          grep -q '^ARCH=arm64-v8a$' build/config/device.conf
+          grep -q '^KEEP_EEA_TELESERVICE=true$' build/config/device.conf
+          grep -q '^CHINA_TELESERVICE_REPLACEMENT=false$' build/config/device.conf
+          grep -q '^MMS_DEFAULT_ENABLED=false$' build/config/device.conf
+          test -f build/product/etc/permissions/privapp-permissions-hyperos-dialer.xml
+          grep -q 'package="com.android.incallui"' build/product/etc/permissions/privapp-permissions-hyperos-dialer.xml
+          grep -q 'package="com.android.contacts"' build/product/etc/permissions/privapp-permissions-hyperos-dialer.xml
+          ! grep -R -nE 'pm[[:space:]]+(install|uninstall-system-updates)' build/customize.sh build/tools build/META-INF/zbin || true
+          ! grep -R -n 'TeleService.apk' build/customize.sh build/tools build/META-INF/zbin build/config || true
+
+      - name: Add exact reference overlays
+        shell: bash
+        run: |
+          set -euo pipefail
+          BASE=https://raw.githubusercontent.com/microllate/HyperOS-Dialer-Port/main
+          curl -fL --retry 3 --retry-all-errors "$BASE/Dialer_overlay1_mods_center.apk" -o build/product/overlay/Dialer_overlay1_mods_center.apk
+          curl -fL --retry 3 --retry-all-errors "$BASE/Dialer_overlay2_mods_center.apk" -o build/product/overlay/Dialer_overlay2_mods_center.apk
+          curl -fL --retry 3 --retry-all-errors "$BASE/GmsConfigOverlayComms.apk" -o build/product/overlay/GmsConfigOverlayComms.apk
+          test "$(sha256sum build/product/overlay/Dialer_overlay1_mods_center.apk | cut -d' ' -f1)" = "fb556d5be9cdf369203ddc5e26f973aa4ef2954667af823045e73cc35cd53060"
+          test "$(sha256sum build/product/overlay/Dialer_overlay2_mods_center.apk | cut -d' ' -f1)" = "fde522e7055d8bfaef1fde1eb8f7b7e5480ed8d7a3e74104f522a0ddd15f7714"
+          test "$(sha256sum build/product/overlay/GmsConfigOverlayComms.apk | cut -d' ' -f1)" = "595226087dd671f943f401d3162011a196d82f49e2eeb7b8f7cdf8f816058582"
+
+      - name: Generate module ZIP
+        shell: bash
+        run: |
+          set -euo pipefail
+          sha256sum build/product/priv-app/*/*.apk build/system/priv-app/*/*.apk > build/PAYLOAD-SHA256.txt
+          mkdir -p dist
+          (cd build && zip -9 -r ../dist/HyperOS-Dialer-Port-mondrian-OS3-v0.5.1.zip .)
+          sha256sum dist/HyperOS-Dialer-Port-mondrian-OS3-v0.5.1.zip > dist/SHA256SUMS.txt
+          unzip -t dist/HyperOS-Dialer-Port-mondrian-OS3-v0.5.1.zip
+          unzip -l dist/HyperOS-Dialer-Port-mondrian-OS3-v0.5.1.zip > dist/ZIP-CONTENTS.txt
+          grep -q 'META-INF/com/google/android/update-binary' dist/ZIP-CONTENTS.txt
+          grep -q 'module.prop' dist/ZIP-CONTENTS.txt
+          grep -q 'product/priv-app/InCallUIPhoneHyperOS/InCallUIPhoneHyperOS.apk' dist/ZIP-CONTENTS.txt
+          grep -q 'system/priv-app/MIUIContactsT/MIUIContacts.apk' dist/ZIP-CONTENTS.txt
+          grep -q 'product/overlay/Dialer_overlay1_mods_center.apk' dist/ZIP-CONTENTS.txt
+          grep -q 'product/overlay/Dialer_overlay2_mods_center.apk' dist/ZIP-CONTENTS.txt
+          grep -q 'product/overlay/GmsConfigOverlayComms.apk' dist/ZIP-CONTENTS.txt
+          ! grep -q 'TeleService.apk' dist/ZIP-CONTENTS.txt
+          ! grep -q 'MMS.apk' dist/ZIP-CONTENTS.txt
+          ! grep -q 'com.google.android.dialer' dist/ZIP-CONTENTS.txt
+          ! grep -q 'com.google.android.contacts' dist/ZIP-CONTENTS.txt
+
+      - uses: actions/upload-artifact@v6
+        with:
+          name: HyperOS-Dialer-Port-mondrian-OS3-v0.5.1
+          path: dist/*

@@ -1,0 +1,6 @@
+#!/system/bin/sh
+set -eu
+MODDIR=${MODDIR:-${0%/META-INF/zbin/setup}}
+[ "$(getprop ro.product.device)" = "mondrian" ] || exit 1
+[ "$(getprop ro.build.version.sdk)" = "35" ] || exit 1
+exit 0
