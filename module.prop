@@ -1,6 +1,6 @@
 id=hyperos_dialer_port
-name=HyperOS Dialer Port (China TeleService)
-version=0.4.0-dev
-versionCode=20
+name=HyperOS Dialer Port (Android 15)
+version=0.5.0-dev
+versionCode=30
 author=microllate
-description=Systemless HyperOS OS2 China InCallUI, MIUI Contacts and TeleService port adapted for HyperOS OS3 Android 15 mondrian.
+description=Android 15 systemless port based strictly on the supplied MIUI HyperOS domestic dialer module: InCallUI, MIUI Contacts and reference overlays.
