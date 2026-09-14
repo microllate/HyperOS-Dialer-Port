@@ -1,0 +1,8 @@
+Source: supplied MIUI_HyperOS国内拨号.zip
+Selected Android 15 runtime payload:
+- files/InCallUIU/InCallUI.apk
+- system/priv-app/MIUIContactsT/MIUIContacts.apk
+- system/product/overlay/Dialer_overlay1_mods_center.apk
+- system/product/overlay/Dialer_overlay2_mods_center.apk
+- system/product/overlay/GmsConfigOverlayComms.apk
+No TeleService.apk in source module.
