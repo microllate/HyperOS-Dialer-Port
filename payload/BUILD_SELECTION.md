@@ -1,0 +1,1 @@
+Android 15 target selection: use `files/InCallUIU/InCallUI.apk` from the supplied reference module (the source module has no Android 15 InCallUI branch). Do not use or replace with China TeleService. Keep OS3 EEA TeleService untouched.
