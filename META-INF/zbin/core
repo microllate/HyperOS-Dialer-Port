@@ -1,0 +1,9 @@
+#!/system/bin/sh
+set -eu
+DEVICE=$(getprop ro.product.device 2>/dev/null || true)
+SDK=$(getprop ro.build.version.sdk 2>/dev/null || true)
+[ "$DEVICE" = "mondrian" ] || exit 1
+[ "$SDK" = "35" ] || exit 1
+# OS3 port core: payloads are mounted systemlessly by KernelSU/meta-overlayfs.
+# No package-manager installation or Google Dialer/Contacts removal is performed.
+exit 0
