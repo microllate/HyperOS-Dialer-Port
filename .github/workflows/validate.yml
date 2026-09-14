@@ -21,24 +21,44 @@ jobs:
           rm -rf build dist
           mkdir -p build/product/priv-app/InCallUIPhoneHyperOS
           mkdir -p build/product/priv-app/MIUIContactsT
+          mkdir -p build/system/priv-app/TeleService
           mkdir -p build/product/etc/permissions
+          mkdir -p build/product/overlay
+          mkdir -p build/META-INF/zbin
           cp module.prop customize.sh system.prop build/
           cp -r config tools docs build/
           cp product/etc/permissions/privapp-permissions-hyperos-dialer.xml build/product/etc/permissions/
+          cp META-INF/zbin/setup META-INF/zbin/core META-INF/zbin/version.txt build/META-INF/zbin/
 
-      - name: Fetch authoritative OS2 payloads
+      - name: Fetch authoritative OS2 China payloads
         shell: bash
         run: |
           set -euo pipefail
-          curl -fL --retry 3 --retry-all-errors \
-            https://raw.githubusercontent.com/microllate/HyperOS-Dialer-Port/main/InCallUIPhoneHyperOS.apk \
+          BASE=https://raw.githubusercontent.com/microllate/HyperOS-Dialer-Port/main
+          curl -fL --retry 3 --retry-all-errors "$BASE/InCallUIPhoneHyperOS.apk" \
             -o build/product/priv-app/InCallUIPhoneHyperOS/InCallUIPhoneHyperOS.apk
-          curl -fL --retry 3 --retry-all-errors \
-            https://raw.githubusercontent.com/microllate/HyperOS-Dialer-Port/main/MIUIContactsT.apk \
+          curl -fL --retry 3 --retry-all-errors "$BASE/MIUIContactsT.apk" \
             -o build/product/priv-app/MIUIContactsT/MIUIContactsT.apk
+          curl -fL --retry 3 --retry-all-errors "$BASE/TeleService.apk" \
+            -o build/system/priv-app/TeleService/TeleService.apk
           test "$(sha256sum build/product/priv-app/InCallUIPhoneHyperOS/InCallUIPhoneHyperOS.apk | cut -d' ' -f1)" = \
             "9b18172465e80a7bb387e1bfdd6de0ca8debf93427cf7b15bb87030095e0f120"
-          sha256sum build/product/priv-app/*/*.apk > build/PAYLOAD-SHA256.txt
+          test "$(sha256sum build/system/priv-app/TeleService/TeleService.apk | cut -d' ' -f1)" = \
+            "b104a007e37e4611beaa752584cd755872fbd6f6"
+          sha256sum build/product/priv-app/*/*.apk build/system/priv-app/*/*.apk > build/PAYLOAD-SHA256.txt
+
+      - name: Extract native libraries from exact OS2 APKs
+        shell: bash
+        run: |
+          set -euo pipefail
+          for app in InCallUIPhoneHyperOS MIUIContactsT; do
+            src="build/product/priv-app/$app/$app.apk"
+            out="build/product/priv-app/$app/lib/arm64"
+            mkdir -p "$out"
+            unzip -jo "$src" 'lib/arm64-v8a/*.so' -d "$out" || true
+          done
+          mkdir -p build/system/priv-app/TeleService/lib/arm64
+          unzip -jo build/system/priv-app/TeleService/TeleService.apk 'lib/arm64-v8a/*.so' -d build/system/priv-app/TeleService/lib/arm64 || true
 
       - name: Validate APK metadata and module structure
         shell: bash
@@ -48,16 +68,23 @@ jobs:
           test -x "$AAPT2"
           "$AAPT2" dump badging build/product/priv-app/InCallUIPhoneHyperOS/InCallUIPhoneHyperOS.apk > build/incallui-badging.txt
           "$AAPT2" dump badging build/product/priv-app/MIUIContactsT/MIUIContactsT.apk > build/contacts-badging.txt
+          "$AAPT2" dump badging build/system/priv-app/TeleService/TeleService.apk > build/teleservice-badging.txt
           grep -q "package: name='com.android.incallui'" build/incallui-badging.txt
           grep -q "package: name='com.android.contacts'" build/contacts-badging.txt
+          grep -q "package: name='com.android.phone'" build/teleservice-badging.txt
+          grep -q "versionCode='35'" build/teleservice-badging.txt
           grep -q '^DEVICE=mondrian$' build/config/device.conf
           grep -q '^ANDROID_API=35$' build/config/device.conf
           grep -q '^ARCH=arm64-v8a$' build/config/device.conf
-          grep -q '^KEEP_EEA_TELESERVICE=true$' build/config/device.conf
+          grep -q '^USE_OS2_CHINA_TELESERVICE=true$' build/config/device.conf
+          grep -q '^KEEP_EEA_TELESERVICE=false$' build/config/device.conf
+          grep -q '^MMS_ENABLED=false$' build/config/device.conf
           test -f build/product/etc/permissions/privapp-permissions-hyperos-dialer.xml
           grep -q 'package="com.android.incallui"' build/product/etc/permissions/privapp-permissions-hyperos-dialer.xml
           grep -q 'package="com.android.contacts"' build/product/etc/permissions/privapp-permissions-hyperos-dialer.xml
-          ! grep -R -nE 'pm[[:space:]]+(install|uninstall-system-updates)' build/customize.sh build/tools || true
+          test -f build/META-INF/zbin/setup
+          test -f build/META-INF/zbin/core
+          ! grep -R -nE 'pm[[:space:]]+(install|uninstall-system-updates)' build/customize.sh build/tools build/META-INF/zbin || true
 
       - name: Generate module ZIP
         shell: bash
@@ -69,8 +96,11 @@ jobs:
           unzip -l dist/HyperOS-Dialer-Port-mondrian-OS3-v0.4.0.zip > dist/ZIP-CONTENTS.txt
           grep -q 'product/priv-app/InCallUIPhoneHyperOS/InCallUIPhoneHyperOS.apk' dist/ZIP-CONTENTS.txt
           grep -q 'product/priv-app/MIUIContactsT/MIUIContactsT.apk' dist/ZIP-CONTENTS.txt
+          grep -q 'system/priv-app/TeleService/TeleService.apk' dist/ZIP-CONTENTS.txt
           grep -q 'product/etc/permissions/privapp-permissions-hyperos-dialer.xml' dist/ZIP-CONTENTS.txt
-          ! grep -q 'TeleService.apk' dist/ZIP-CONTENTS.txt
+          grep -q 'META-INF/zbin/setup' dist/ZIP-CONTENTS.txt
+          grep -q 'META-INF/zbin/core' dist/ZIP-CONTENTS.txt
+          ! grep -q 'MMS.apk' dist/ZIP-CONTENTS.txt
           ! grep -q 'com.google.android.dialer' dist/ZIP-CONTENTS.txt
           ! grep -q 'com.google.android.contacts' dist/ZIP-CONTENTS.txt
 
