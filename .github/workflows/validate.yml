@@ -38,14 +38,16 @@ jobs:
             -o build/product/priv-app/MIUIContactsT/MIUIContactsT.apk
           test "$(sha256sum build/product/priv-app/InCallUIPhoneHyperOS/InCallUIPhoneHyperOS.apk | cut -d' ' -f1)" = \
             "9b18172465e80a7bb387e1bfdd6de0ca8debf93427cf7b15bb87030095e0f120"
+          sha256sum build/product/priv-app/*/*.apk > build/PAYLOAD-SHA256.txt
 
       - name: Validate APK metadata and module structure
         shell: bash
         run: |
           set -euo pipefail
-          command -v aapt2 >/dev/null || { echo "aapt2 unavailable"; exit 1; }
-          aapt2 dump badging build/product/priv-app/InCallUIPhoneHyperOS/InCallUIPhoneHyperOS.apk > build/incallui-badging.txt
-          aapt2 dump badging build/product/priv-app/MIUIContactsT/MIUIContactsT.apk > build/contacts-badging.txt
+          AAPT2=$(find "${ANDROID_HOME}/build-tools" -type f -name aapt2 | sort -V | tail -1)
+          test -x "$AAPT2"
+          "$AAPT2" dump badging build/product/priv-app/InCallUIPhoneHyperOS/InCallUIPhoneHyperOS.apk > build/incallui-badging.txt
+          "$AAPT2" dump badging build/product/priv-app/MIUIContactsT/MIUIContactsT.apk > build/contacts-badging.txt
           grep -q "package: name='com.android.incallui'" build/incallui-badging.txt
           grep -q "package: name='com.android.contacts'" build/contacts-badging.txt
           grep -q '^DEVICE=mondrian$' build/config/device.conf
@@ -53,7 +55,9 @@ jobs:
           grep -q '^ARCH=arm64-v8a$' build/config/device.conf
           grep -q '^KEEP_EEA_TELESERVICE=true$' build/config/device.conf
           test -f build/product/etc/permissions/privapp-permissions-hyperos-dialer.xml
-          ! grep -R -nE 'pm (install|uninstall-system-updates)' build/customize.sh build/tools || true
+          grep -q 'package="com.android.incallui"' build/product/etc/permissions/privapp-permissions-hyperos-dialer.xml
+          grep -q 'package="com.android.contacts"' build/product/etc/permissions/privapp-permissions-hyperos-dialer.xml
+          ! grep -R -nE 'pm[[:space:]]+(install|uninstall-system-updates)' build/customize.sh build/tools || true
 
       - name: Generate module ZIP
         shell: bash
@@ -67,6 +71,8 @@ jobs:
           grep -q 'product/priv-app/MIUIContactsT/MIUIContactsT.apk' dist/ZIP-CONTENTS.txt
           grep -q 'product/etc/permissions/privapp-permissions-hyperos-dialer.xml' dist/ZIP-CONTENTS.txt
           ! grep -q 'TeleService.apk' dist/ZIP-CONTENTS.txt
+          ! grep -q 'com.google.android.dialer' dist/ZIP-CONTENTS.txt
+          ! grep -q 'com.google.android.contacts' dist/ZIP-CONTENTS.txt
 
       - uses: actions/upload-artifact@v6
         with:
