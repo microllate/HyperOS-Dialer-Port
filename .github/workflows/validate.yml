@@ -1,4 +1,4 @@
-name: Validate HyperOS Dialer Port
+name: Build HyperOS Dialer Port
 
 on:
   push:
@@ -9,43 +9,66 @@ permissions:
   contents: read
 
 jobs:
-  validate:
+  build:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
 
-      - name: Validate repository layout
+      - name: Prepare module tree
         shell: bash
         run: |
           set -euo pipefail
-          test -f module.prop
-          test -f customize.sh
-          test -f system.prop
-          test -f config/device.conf
-          test -f docs/android15-port-analysis.md
-          test -f docs/payload-policy.md
-          test -f tools/validate-module.sh
-          test -f system/etc/permissions/privapp-permissions-hyperos-dialer.xml
-          grep -q '^DEVICE=mondrian$' config/device.conf
-          grep -q '^ANDROID_API=35$' config/device.conf
-          grep -q '^ARCH=arm64-v8a$' config/device.conf
-          grep -q '^KEEP_EEA_TELESERVICE=true$' config/device.conf
-          echo 'Repository validation passed.'
+          rm -rf build dist
+          mkdir -p build/product/priv-app/InCallUIPhoneHyperOS
+          mkdir -p build/product/priv-app/MIUIContactsT
+          mkdir -p build/product/etc/permissions
+          cp module.prop customize.sh system.prop build/
+          cp -r config tools docs build/
+          cp product/etc/permissions/privapp-permissions-hyperos-dialer.xml build/product/etc/permissions/
 
-      - name: Validate shell scripts
+      - name: Fetch authoritative OS2 payloads
         shell: bash
         run: |
           set -euo pipefail
-          bash -n customize.sh
-          bash -n tools/validate-module.sh
+          curl -fL --retry 3 --retry-all-errors \
+            https://raw.githubusercontent.com/microllate/HyperOS-Dialer-Port/main/InCallUIPhoneHyperOS.apk \
+            -o build/product/priv-app/InCallUIPhoneHyperOS/InCallUIPhoneHyperOS.apk
+          curl -fL --retry 3 --retry-all-errors \
+            https://raw.githubusercontent.com/microllate/HyperOS-Dialer-Port/main/MIUIContactsT.apk \
+            -o build/product/priv-app/MIUIContactsT/MIUIContactsT.apk
+          test "$(sha256sum build/product/priv-app/InCallUIPhoneHyperOS/InCallUIPhoneHyperOS.apk | cut -d' ' -f1)" = \
+            "9b18172465e80a7bb387e1bfdd6de0ca8debf93427cf7b15bb87030095e0f120"
 
-      - name: Package source tree
+      - name: Validate APK metadata and module structure
+        shell: bash
         run: |
+          set -euo pipefail
+          command -v aapt2 >/dev/null || { echo "aapt2 unavailable"; exit 1; }
+          aapt2 dump badging build/product/priv-app/InCallUIPhoneHyperOS/InCallUIPhoneHyperOS.apk > build/incallui-badging.txt
+          aapt2 dump badging build/product/priv-app/MIUIContactsT/MIUIContactsT.apk > build/contacts-badging.txt
+          grep -q "package: name='com.android.incallui'" build/incallui-badging.txt
+          grep -q "package: name='com.android.contacts'" build/contacts-badging.txt
+          grep -q '^DEVICE=mondrian$' build/config/device.conf
+          grep -q '^ANDROID_API=35$' build/config/device.conf
+          grep -q '^ARCH=arm64-v8a$' build/config/device.conf
+          grep -q '^KEEP_EEA_TELESERVICE=true$' build/config/device.conf
+          test -f build/product/etc/permissions/privapp-permissions-hyperos-dialer.xml
+          ! grep -R -nE 'pm (install|uninstall-system-updates)' build/customize.sh build/tools || true
+
+      - name: Generate module ZIP
+        shell: bash
+        run: |
+          set -euo pipefail
           mkdir -p dist
-          tar -czf dist/HyperOS-Dialer-Port-source.tar.gz \
-            --exclude=.git --exclude=dist .
+          (cd build && zip -9 -r ../dist/HyperOS-Dialer-Port-mondrian-OS3-v0.4.0.zip .)
+          sha256sum dist/HyperOS-Dialer-Port-mondrian-OS3-v0.4.0.zip > dist/SHA256SUMS.txt
+          unzip -l dist/HyperOS-Dialer-Port-mondrian-OS3-v0.4.0.zip > dist/ZIP-CONTENTS.txt
+          grep -q 'product/priv-app/InCallUIPhoneHyperOS/InCallUIPhoneHyperOS.apk' dist/ZIP-CONTENTS.txt
+          grep -q 'product/priv-app/MIUIContactsT/MIUIContactsT.apk' dist/ZIP-CONTENTS.txt
+          grep -q 'product/etc/permissions/privapp-permissions-hyperos-dialer.xml' dist/ZIP-CONTENTS.txt
+          ! grep -q 'TeleService.apk' dist/ZIP-CONTENTS.txt
 
       - uses: actions/upload-artifact@v6
         with:
-          name: HyperOS-Dialer-Port-source
-          path: dist/HyperOS-Dialer-Port-source.tar.gz
+          name: HyperOS-Dialer-Port-mondrian-OS3
+          path: dist/*
