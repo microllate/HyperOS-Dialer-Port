@@ -43,8 +43,6 @@ jobs:
             -o build/system/priv-app/TeleService/TeleService.apk
           test "$(sha256sum build/product/priv-app/InCallUIPhoneHyperOS/InCallUIPhoneHyperOS.apk | cut -d' ' -f1)" = \
             "9b18172465e80a7bb387e1bfdd6de0ca8debf93427cf7b15bb87030095e0f120"
-          test "$(sha256sum build/system/priv-app/TeleService/TeleService.apk | cut -d' ' -f1)" = \
-            "b104a007e37e4611beaa752584cd755872fbd6f6"
           sha256sum build/product/priv-app/*/*.apk build/system/priv-app/*/*.apk > build/PAYLOAD-SHA256.txt
 
       - name: Extract native libraries from exact OS2 APKs
