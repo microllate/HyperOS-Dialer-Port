@@ -7,19 +7,19 @@ ok(){ echo "[ OK ] $*"; }
 [ -f "$MODDIR/module.prop" ] || fail "module.prop missing"
 [ -f "$MODDIR/customize.sh" ] || fail "customize.sh missing"
 [ -d "$MODDIR/product" ] || fail "product overlay missing"
-[ -d "$MODDIR/system" ] || fail "system overlay missing"
 ok "module skeleton"
-if [ -e "$MODDIR/product/priv-app/InCallUIPhoneHyperOS/InCallUIPhoneHyperOS.apk" ]; then
-  ok "China InCallUI payload present"
-else
-  echo "[WARN] China InCallUI APK payload not bundled yet"
-fi
-if [ -e "$MODDIR/product/priv-app/MIUIContactsT/MIUIContactsT.apk" ]; then
-  ok "MIUI Contacts payload present"
-else
-  echo "[WARN] MIUI Contacts APK payload not bundled yet"
-fi
-if [ -e /system/product/priv-app/InCallUIPhoneHyperOS/InCallUIPhoneHyperOS.apk ]; then
+for p in \
+  "$MODDIR/product/priv-app/InCallUIPhoneHyperOS/InCallUIPhoneHyperOS.apk" \
+  "$MODDIR/product/priv-app/MIUIContactsT/MIUIContactsT.apk" \
+  "$MODDIR/system/priv-app/TeleService/TeleService.apk"; do
+  [ -e "$p" ] || fail "missing payload: $p"
+done
+ok "China InCallUI payload"
+ok "MIUI Contacts payload"
+ok "OS2 China TeleService payload"
+[ -e "$MODDIR/product/etc/permissions/privapp-permissions-hyperos-dialer.xml" ] || fail "privapp permissions missing"
+ok "privapp permissions"
+if [ -e /product/priv-app/InCallUIPhoneHyperOS/InCallUIPhoneHyperOS.apk ]; then
   ok "runtime InCallUI path visible"
 else
   echo "[INFO] runtime InCallUI path not visible on this host"
