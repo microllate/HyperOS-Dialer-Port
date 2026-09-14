@@ -1,0 +1,1 @@
+Exact binaries from the supplied MIUI_HyperOS domestic dialer module are staged here for Android 15 packaging. InCallUIU is the Android 14 branch selected for the Android 15 target because the source module has no Android 15 branch. TeleService is intentionally absent.
