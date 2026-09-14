@@ -2,15 +2,16 @@
 
 ## Source module
 
-This port is based on the previously supplied `MIUI_HyperOS国内拨号.zip` module. The existing module layout and payload concept are retained; this repository is not a clean-room rewrite.
+This port is based on the supplied `MIUI_HyperOS国内拨号.zip` module. Its domestic dialer component model is retained; the Android 13/14-only installer behavior is adapted for Android 15.
 
-## What is retained
+## Runtime payload
 
-- China HyperOS InCallUI + MIUI Contacts as the primary payload.
-- `product/priv-app` placement for systemless replacement.
-- `system/etc/permissions` privileged-permission allowlist.
-- Module-manager installation rather than normal APK installation as the deployment model.
-- MIUI Dialer/Contacts overlay resources only where required by the port.
+- China HyperOS InCallUI
+- MIUI Contacts
+- China OS2 `com.android.phone` / TeleService
+- Native libraries extracted from the exact OS2 APKs
+- Minimal privileged-permission allowlist under `product/etc/permissions`
+- `META-INF/zbin` Android 15/mondrian validation framework
 
 ## What is changed for this phone
 
@@ -20,26 +21,22 @@ Target ROM: HyperOS OS3 EEA, build `OS3.0.2.0.VMNEUXM`.
 
 Target Android: 15 / API 35 / arm64-v8a.
 
-The original module contains Android 13/14 payload branches. Those branches are not used for this port. The user-supplied OS2 China APKs are the payload source instead.
+The original module contains Android 13/14 InCallUI branches. Those are not used. The OS2 China APKs stored in `main` are authoritative.
 
-The original installer behavior that performs `pm install` or removes Google Dialer/Contacts system updates is deliberately not carried over. Those operations are unsafe for this EEA target and are unnecessary when the APKs are mounted at their system paths.
+The original `pm install` and `pm uninstall-system-updates` behavior is not copied. The payload is mounted systemlessly by KernelSU/meta-overlayfs.
 
 ## TeleService policy
 
-China `com.android.phone` is not included in the port. The EEA `com.android.phone` remains the active TeleService implementation.
+China `com.android.phone` from the OS2 payload is included and replaces the EEA TeleService path in the module. This is required because the China InCallUI has direct MIUI TeleService dependencies such as `MiuiPhoneApp`, `MiuiPhoneUtils`, `MiuiImsPhoneUtils`, `MiuiEsimManager` and `ACCESS_RELAY_SERVICE`.
 
-This is intentional because China InCallUI references MIUI/TeleService interfaces, while replacing TeleService would introduce the largest cross-region compatibility risk. The port therefore changes the UI/Contacts side first and leaves the telephony backend untouched.
+## MMS policy
 
-## Payload source
+The reference MMS/RCS component remains excluded. It is an optional component and is not required for the core dialer/Contacts/TeleService port.
 
-The authoritative payload files are stored at the repository root on `main`:
+## Overlay policy
 
-- `InCallUIPhoneHyperOS.apk`
-- `MIUIContactsT.apk`
-- `TeleService.apk` (reference only; not packaged into the module)
-
-The build workflow can copy the first two from `main` into the module staging tree. This keeps the source APKs stored in GitHub while preventing accidental inclusion of EEA TeleService replacement code.
+The three reference Dialer overlays remain a tracked dependency, but they are not inserted blindly. Only overlays proven to target the OS3 resource/package set will be included.
 
 ## Safety gate
 
-Do not install the module on the phone until the GitHub Actions package passes the structural and payload checks. The previous boot failure makes staged validation mandatory.
+Do not install the module until the GitHub Actions ZIP passes all structural, package and payload checks. The previous boot failure makes staged validation mandatory.
